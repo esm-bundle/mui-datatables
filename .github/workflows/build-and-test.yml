@@ -23,15 +23,21 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     env:
+      # used by 'release-it'
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_USER: ${{ secrets.GITHUB_ACTOR }}
-      BOT_TOKEN: ${{ secrets.PUBLISH_BOT }}
+      GITHUB_TOKEN: ${{ secrets.PUBLISH_BOT }}
+      # used manually in setting git config
+      BOT_EMAIL: ${{ secrets.PUBLISH_BOT_EMAIL }}
+      # used by unit tests
       MOZ_HEADLESS: 1
     needs: build
     if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v2
+        with:
+          # Use our own token instead of the default token
+          # this step persists login credentials so strongly that we couldn't get them to override
+          token: ${{ secrets.PUBLISH_BOT }}
       - uses: actions/setup-node@v2
         with:
           node-version: "15"
@@ -41,9 +47,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Setup auth
         run: |
-          git config --global user.name esm-bundle-org-bot
-          echo "https://esm-bundle-org-bot:$BOT_TOKEN@github.com" > ~/.git-credentials
-          git config --global credential.helper store
+          git config --global user.email "$BOT_EMAIL"
+          git config --global user.name "esm-bundle-org-bot"
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc
       - name: "Publish to npm"
         run: pnpm run release
